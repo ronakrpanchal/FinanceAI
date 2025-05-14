@@ -39,7 +39,7 @@ def recommendations():
     user_id = data.get('user_id')
     try:
         recommendations = financial_recommender(user_id)
-        return jsonify({"message": "Recommendations generated successfully"}), 200
+        return jsonify({"message": "Recommendations generated successfully","response":recommendations}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
