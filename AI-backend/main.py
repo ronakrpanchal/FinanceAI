@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from reciept import reciept_model,save_reciept_in_db
+from reciept import receipt_model,save_receipt_in_mongodb
 from budget import parse_budget,save_in_db
 from recommender import financial_recommender
 from datetime import datetime
@@ -14,8 +14,8 @@ def parse_reciept():
     if not image_url:
         return jsonify({"error": "Image URL is required"}), 400
     try:
-        llm_response = reciept_model(image_url)
-        save_reciept_in_db(user_id=user_id,llm_response=llm_response,date=datetime.now().strftime("%Y-%m-%d"),type="groceries")
+        llm_response = receipt_model(image_url)
+        save_receipt_in_mongodb(user_id=user_id,llm_response=llm_response,date=datetime.now().strftime("%Y-%m-%d"),category="groceries")
         return jsonify({"message": "Receipt parsed successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

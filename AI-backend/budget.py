@@ -6,13 +6,13 @@ from langchain_core.output_parsers import JsonOutputParser
 import json
 from dotenv import load_dotenv
 import os
-import json
-import sqlite3
+from pymongo import MongoClient
 
 load_dotenv()
 
 API_KEY = os.environ.get("GROQ_API_KEY")
 MODEL_NAME = os.environ.get('MODEL_NAME')
+MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
 
 class BudgetCategory(BaseModel):
     category: str
@@ -59,18 +59,45 @@ def parse_budget(description: str) -> dict:
     save_json_to_file(result, 'budget_data.json')
     return result
 
-def save_in_db(user_id,response):
-    conn = sqlite3.connect('finance_ai.db')
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO budgets (user_id, budget_data)
-        VALUES (?, ?)
-    """, (user_id, json.dumps(response)))
-    conn.commit()
-    conn.close()
+def get_mongodb_connection():
+    """Create and return a MongoDB client connection"""
+    client = MongoClient(MONGO_URI)
+    return client
+
+def save_in_db(user_id, response):
+    """Save budget data to MongoDB"""
+    client = get_mongodb_connection()
+    db = client['finance_ai']  # Database name
+    budgets_collection = db['budgets']  # Collection name
     
+    # Create document to insert
+    budget_document = {
+        'user_id': user_id,
+    }
+    new_budget = {
+        '$set': {
+            'budget_data': response
+        }
+    }
+    # Insert document into collection
+    budgets_collection.update_one(budget_document,update=new_budget, upsert=True)
+    client.close()
+    
+    # return result.inserted_id
+
+def get_user_budget(user_id):
+    """Retrieve user budget from MongoDB"""
+    client = get_mongodb_connection()
+    db = client['finance_ai']
+    budgets_collection = db['budgets']
+    
+    budget = budgets_collection.find_one({'user_id': user_id})
+    client.close()
+    
+    return budget
+
 if __name__ == "__main__":
     response = parse_budget("I earn 5000 per month. I allocate 2000 for rent, 500 for groceries, 300 for utilities, and 500 for entertainment. I save 1000 each month.")
     print(response)
-    save_in_db(1,response)
-    print("Budget data saved successfully")
+    inserted_id = save_in_db('68245ee0af6dbf213330448c', response)
+    print(f"Budget data saved successfully with ID: {inserted_id}")

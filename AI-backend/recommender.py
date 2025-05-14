@@ -1,90 +1,102 @@
-import pandas as pd
 import json
+import os
+from datetime import datetime
+from dotenv import load_dotenv
+from pymongo import MongoClient
+from bson import ObjectId
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from dotenv import load_dotenv
-import os
-import sqlite3
-from datetime import datetime, timedelta
+from pydantic import BaseModel, Field
+import pandas as pd
 
+# ----------------------- Custom JSON Encoder for MongoDB ObjectId -----------------------
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+# ----------------------- Load Environment -----------------------
 load_dotenv()
-
 API_KEY = os.environ.get("GROQ_API_KEY")
-MODEL_NAME = os.environ.get('MODEL_NAME')
+MODEL_NAME = os.environ.get("MODEL_NAME")
+MONGO_URI = os.environ.get("MONGO_URI")
 
+# ----------------------- MongoDB Setup -----------------------
+client = MongoClient(MONGO_URI)
+db = client['finance_ai']
+
+# ----------------------- Pydantic Output Schema -----------------------
+class RiskAssessment(BaseModel):
+    debt_risk: str = Field(...)
+    savings_risk: str = Field(...)
+    subscription_risk: str = Field(...)
+
+class RecommendationOutput(BaseModel):
+    recommendations: list[str] = Field(...)
+    action_items: list[str] = Field(...)
+    risk_assessment: RiskAssessment
+
+# ----------------------- Trend Calculation -----------------------
+def calculate_trend(user_id, amount_type):
+    pipeline = [
+        {"$match": {"user_id": user_id, "amount_type": amount_type}},
+        {"$group": {
+            "_id": {"$substr": ["$transaction_date", 0, 7]},
+            "total": {"$sum": "$amount"}
+        }},
+        {"$sort": {"_id": -1}},
+        {"$limit": 3}
+    ]
+    results = db.transactions.aggregate(pipeline)
+    return [{"month": r["_id"], "total": r["total"]} for r in results]
+
+# ----------------------- Preprocessing -----------------------
 def preprocess(user_id):
-    """Preprocess user data from the database"""
-    conn = sqlite3.connect('finance_ai.db')
-    
     try:
-        # Get current month's transactions
         current_month = datetime.now().strftime('%Y-%m')
-        query = """
-            SELECT transaction_date, amount, amount_type, category, description 
-            FROM transactions 
-            WHERE user_id = ? 
-            AND strftime('%Y-%m', transaction_date) = ?
-        """
-        df = pd.read_sql_query(query, conn, params=(user_id, current_month))
-        
-        # Get subscriptions with their usage and priority
-        subscriptions_query = """
-            SELECT name, cost, usage, priority 
-            FROM subscriptions 
-            WHERE user_id = ?
-        """
-        subscriptions_df = pd.read_sql_query(subscriptions_query, conn, params=(user_id,))
-        subscriptions = subscriptions_df.to_dict('records')
-        
-        # Get debts with interest rates
-        debts_query = """
-            SELECT name, amount, interest_rate, priority 
-            FROM debts 
-            WHERE user_id = ?
-        """
-        debts_df = pd.read_sql_query(debts_query, conn, params=(user_id,))
-        debts = debts_df.to_dict('records')
-        
-        # Get budget data
-        budget_query = """
-            SELECT budget_data 
-            FROM budgets 
-            WHERE user_id = ? 
-        """
-        cursor = conn.cursor()
-        cursor.execute(budget_query, (user_id,))
-        result = cursor.fetchone()
-        
-        # Calculate financial metrics
+        transactions = list(db.transactions.find({
+            "user_id": user_id,
+            "transaction_date": {"$regex": f"^{current_month}"}
+        }))
+
+        subscriptions = list(db.subscriptions.find({"user_id": user_id}))
+        debts = list(db.debts.find({"user_id": user_id}))
+        budget_doc = db.budgets.find_one({"user_id": user_id})
+
+        df = pd.DataFrame(transactions)
+        if df.empty:
+            df = pd.DataFrame(columns=["amount", "amount_type", "category", "description"])
+
         ESSENTIAL_CATEGORIES = ["Rent", "Utilities", "Healthcare"]
         VARIABLE_CATEGORIES = ["Dining", "Shopping", "Entertainment"]
-        
-        # Income and expenses
+
         total_income = df[df["amount_type"] == "credit"]["amount"].sum()
         fixed_expenses = df[df["category"].isin(ESSENTIAL_CATEGORIES)]["amount"].sum()
-        
-        # Variable expenses by category
+
         variable_expenses = df[df["category"].isin(VARIABLE_CATEGORIES)]
         variable_expenses_summary = variable_expenses.groupby("category")["amount"].sum().to_dict()
-        
-        # Subscription costs
+
         total_subscription_cost = sum(sub['cost'] for sub in subscriptions)
-        
-        # Debt calculations
         total_debt = sum(debt['amount'] for debt in debts)
+
         weighted_interest_rate = sum(
             debt['amount'] * debt['interest_rate'] for debt in debts
         ) / total_debt if total_debt > 0 else 0
-        
-        # Parse budget data
-        budget_data = json.loads(result[0]) if result else {
+
+        budget_data = budget_doc.get("budget_data", {
+            "income": 0,
+            "savings": 0,
+            "expenses": []
+        }) if budget_doc else {
             "income": 0,
             "savings": 0,
             "expenses": []
         }
-        
-        # Prepare comprehensive user data
+
         user_data_json = {
             "financial_summary": {
                 "total_income": total_income,
@@ -102,33 +114,18 @@ def preprocess(user_id):
             "subscriptions": subscriptions,
             "debts": debts,
             "monthly_trends": {
-                "income_trend": calculate_trend(conn, user_id, "credit"),
-                "expense_trend": calculate_trend(conn, user_id, "debit")
+                "income_trend": calculate_trend(user_id, "credit"),
+                "expense_trend": calculate_trend(user_id, "debit")
             }
         }
-        
+
         return user_data_json
-        
-    except sqlite3.Error as e:
-        print(f"Database error: {e}")
+
+    except Exception as ex:
+        print(f"Error during preprocessing: {ex}")
         return None
-    finally:
-        conn.close()
 
-def calculate_trend(conn, user_id, amount_type):
-    """Calculate monthly trends for income or expenses"""
-    query = """
-        SELECT strftime('%Y-%m', transaction_date) as month,
-               SUM(amount) as total
-        FROM transactions
-        WHERE user_id = ? AND amount_type = ?
-        GROUP BY month
-        ORDER BY month DESC
-        LIMIT 3
-    """
-    df = pd.read_sql_query(query, conn, params=(user_id, amount_type))
-    return df.to_dict('records')
-
+# ----------------------- LangChain LLM Chain -----------------------
 def load_model():
     llm = ChatGroq(
         model_name=MODEL_NAME,
@@ -136,27 +133,7 @@ def load_model():
         api_key=API_KEY
     )
 
-    parser = JsonOutputParser(pydantic_object={
-        "type": "object",
-        "properties": {
-            "recommendations": {
-                "type": "array",
-                "items": {"type": "string"}
-            },
-            "action_items": {
-                "type": "array",
-                "items": {"type": "string"}
-            },
-            "risk_assessment": {
-                "type": "object",
-                "properties": {
-                    "debt_risk": {"type": "string"},
-                    "savings_risk": {"type": "string"},
-                    "subscription_risk": {"type": "string"}
-                }
-            }
-        }
-    })
+    parser = JsonOutputParser(pydantic_object=RecommendationOutput)
 
     prompt = ChatPromptTemplate.from_messages([
         ("system", """Analyze the user's financial data and provide comprehensive recommendations.
@@ -179,53 +156,32 @@ def load_model():
         ("user", "{user_data_json}")
     ])
 
-    chain = prompt | llm | parser
-    return chain
+    return prompt | llm | parser
 
+# ----------------------- Get Recommendations -----------------------
 def get_recommendations(user_data_json: dict) -> dict:
-    chain_ = load_model()
-    result = chain_.invoke({"user_data_json": json.dumps(user_data_json, indent=2)})
-    return result
+    try:
+        chain = load_model()
+        # Use custom encoder to handle MongoDB objects
+        user_data_str = json.dumps(user_data_json, indent=2, cls=MongoJSONEncoder)
+        result = chain.invoke({"user_data_json": user_data_str})
+        return result
+    except Exception as e:
+        print(f"Error during model inference: {e}")
+        return {"error": f"LLM generation failed: {str(e)}"}
 
-# def save_recommendations(user_id: int, recommendations: dict):
-#     """Save recommendations to the database"""
-#     conn = sqlite3.connect('finance_ai.db')
-#     cursor = conn.cursor()
-    
-#     try:
-#         # Add timestamp to recommendations
-#         recommendations['generated_at'] = datetime.now().isoformat()
-        
-#         cursor.execute("""
-#             INSERT INTO budgets (user_id, budget_data)
-#             VALUES (?, ?)
-#         """, (user_id, json.dumps(recommendations)))
-        
-#         conn.commit()
-#         print("Successfully saved recommendations")
-        
-#     except sqlite3.Error as e:
-#         print(f"An error occurred: {e}")
-#         conn.rollback()
-#     finally:
-#         conn.close()
-
-def financial_recommender(user_id: int):
-    """Main function to generate and save financial recommendations"""
-    # Get user data
+# ----------------------- Main Recommendation Function -----------------------
+def financial_recommender(user_id: str):
     user_data_json = preprocess(user_id)
     if not user_data_json:
         return {"error": "Failed to process user data"}
     
-    # Get recommendations
     recommendations = get_recommendations(user_data_json)
-    
-    # Save recommendations
-    
     return recommendations
 
+# ----------------------- Run Script -----------------------
 if __name__ == "__main__":
-    user_id = 1  # Replace with actual user ID
+    user_id = "68245ee0af6dbf213330448c"  # Update accordingly
     recommendations = financial_recommender(user_id)
     print("Financial Recommendations:")
-    print(json.dumps(recommendations, indent=2))
+    print(json.dumps(recommendations, indent=2, cls=MongoJSONEncoder))
