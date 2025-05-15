@@ -11,11 +11,13 @@ def parse_reciept():
     data = request.json
     image_url = data.get('image_url')
     user_id = data.get('user_id')
+    category = data.get('category')
     if not image_url:
         return jsonify({"error": "Image URL is required"}), 400
     try:
         llm_response = receipt_model(image_url)
-        save_receipt_in_mongodb(user_id=user_id,llm_response=llm_response,date=datetime.now().strftime("%Y-%m-%d"),category="groceries")
+        print(llm_response)
+        save_receipt_in_mongodb(user_id=user_id,llm_response=llm_response,date=datetime.now().strftime("%Y-%m-%d"),category=category)
         return jsonify({"message": "Receipt parsed successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

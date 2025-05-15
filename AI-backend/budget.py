@@ -14,15 +14,18 @@ API_KEY = os.environ.get("GROQ_API_KEY")
 MODEL_NAME = os.environ.get('MODEL_NAME')
 MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
 
+# ---------------------- Pydantic Models ---------------------- #
+
 class BudgetCategory(BaseModel):
     category: str
     allocated_amount: float
-    # actual_spent: Optional[float] = 0.0
 
 class Budget(BaseModel):
     income: float
     savings: float
     expenses: List[BudgetCategory]
+
+# ---------------------- Model Loader ---------------------- #
 
 def load_model():
     llm = ChatGroq(
@@ -46,12 +49,9 @@ def load_model():
     ])
 
     chain = prompt | llm | parser
-    
     return chain
 
-def save_json_to_file(data, filename):
-    with open(filename, 'w') as json_file:
-        json.dump(data, json_file, indent=2)
+# ---------------------- Budget Parser ---------------------- #
 
 def parse_budget(description: str) -> dict:
     chain_ = load_model()
@@ -59,34 +59,19 @@ def parse_budget(description: str) -> dict:
     save_json_to_file(result, 'budget_data.json')
     return result
 
+# ---------------------- File Utils ---------------------- #
+
+def save_json_to_file(data, filename):
+    with open(filename, 'w') as json_file:
+        json.dump(data, json_file, indent=2)
+
+# ---------------------- MongoDB Utils ---------------------- #
+
 def get_mongodb_connection():
-    """Create and return a MongoDB client connection"""
     client = MongoClient(MONGO_URI)
     return client
 
-def save_in_db(user_id, response):
-    """Save budget data to MongoDB"""
-    client = get_mongodb_connection()
-    db = client['finance_ai']  # Database name
-    budgets_collection = db['budgets']  # Collection name
-    
-    # Create document to insert
-    budget_document = {
-        'user_id': user_id,
-    }
-    new_budget = {
-        '$set': {
-            'budget_data': response
-        }
-    }
-    # Insert document into collection
-    budgets_collection.update_one(budget_document,update=new_budget, upsert=True)
-    client.close()
-    
-    # return result.inserted_id
-
 def get_user_budget(user_id):
-    """Retrieve user budget from MongoDB"""
     client = get_mongodb_connection()
     db = client['finance_ai']
     budgets_collection = db['budgets']
@@ -96,8 +81,60 @@ def get_user_budget(user_id):
     
     return budget
 
-if __name__ == "__main__":
-    response = parse_budget("I earn 5000 per month. I allocate 2000 for rent, 500 for groceries, 300 for utilities, and 500 for entertainment. I save 1000 each month.")
-    print(response)
-    inserted_id = save_in_db('68245ee0af6dbf213330448c', response)
-    print(f"Budget data saved successfully with ID: {inserted_id}")
+# ---------------------- Budget Merger ---------------------- #
+
+def merge_budget_data(existing: dict, new: dict) -> dict:
+    merged = existing.copy()
+
+    # Update income if provided
+    if 'income' in new and new['income'] != 0:
+        merged['income'] = new['income']
+
+    # Update savings if provided
+    if 'savings' in new and new['savings'] != 0:
+        merged['savings'] = new['savings']
+
+    # Convert existing expenses to dict for merging
+    existing_expenses = {item['category'].lower(): item for item in merged.get('expenses', [])}
+
+    for new_item in new.get('expenses', []):
+        cat = new_item['category'].lower()
+        if cat in existing_expenses:
+            existing_expenses[cat]['allocated_amount'] = new_item['allocated_amount']
+        else:
+            existing_expenses[cat] = new_item
+
+    merged['expenses'] = list(existing_expenses.values())
+    return merged
+
+# ---------------------- Save to DB ---------------------- #
+
+def save_in_db(user_id, response):
+    client = get_mongodb_connection()
+    db = client['finance_ai']
+    budgets_collection = db['budgets']
+
+    user_doc = budgets_collection.find_one({'user_id': user_id})
+
+    if user_doc and 'budget_data' in user_doc:
+        existing_budget = user_doc['budget_data']
+        merged_budget = merge_budget_data(existing_budget, response)
+    else:
+        merged_budget = response  # No existing budget
+
+    budgets_collection.update_one(
+        {'user_id': user_id},
+        {'$set': {'budget_data': merged_budget}},
+        upsert=True
+    )
+
+    save_json_to_file(merged_budget, 'merged_budget.json')  # Optional debug output
+    client.close()
+
+# ---------------------- Main Entry Point ---------------------- #
+
+# if __name__ == "__main__":
+#     response = parse_budget("Set the budget for housing to 10000")
+#     print(response)
+#     save_in_db('68245ee0af6dbf213330448c', response)
+#     print("Budget data saved successfully.")

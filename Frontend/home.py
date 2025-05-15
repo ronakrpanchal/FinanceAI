@@ -2,6 +2,11 @@ import streamlit as st
 from pymongo import MongoClient
 from datetime import datetime
 import pandas as pd
+import requests
+import base64
+import json
+from bson import ObjectId
+import time
 
 # ------------------ MongoDB Utilities ------------------
 def add_transaction(transactions):
@@ -62,6 +67,41 @@ def auto_add_subscriptions(user_id):
             transactions.insert_one(new_expense)
 
     client.close()
+    
+# ------------------ Get Recommendations ------------------
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+def fetch_recommendations(user_id):
+    try:
+        response = requests.post(
+            url="http://127.0.0.1:5000/get-recommendations",
+            json={"user_id": user_id},
+            timeout=60
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"error": response.json().get("error", "Unknown error")}
+    except Exception as e:
+        return {"error": str(e)}
+    
+# Typing animation function
+def typewriter_effect(text, delay=0.005, is_markdown=True):
+    placeholder = st.empty()
+    typed_text = ""
+    for char in text:
+        typed_text += char
+        if is_markdown:
+            placeholder.markdown(typed_text, unsafe_allow_html=True)
+        else:
+            placeholder.write(typed_text)
+        time.sleep(delay)
 
 # ------------------ Main Page ------------------
 def home_page(user_id):
@@ -90,6 +130,35 @@ def home_page(user_id):
             }
             add_transaction(transaction)
             st.success("🎉 Transaction added successfully!")
+            
+    # ========== Section 2: Upload Receipt ==========
+    with st.expander("📸 Upload and Parse Receipt"):
+        uploaded_file = st.file_uploader("Upload receipt image", type=["png", "jpg", "jpeg"])
+        category = st.selectbox("Select receipt category", ["Groceries", "Bills", "Utilities", "Shopping", "Others"])
+
+        if st.button("📤 Parse Receipt"):
+            if uploaded_file is not None:
+                # Convert image to base64
+                image_bytes = uploaded_file.read()
+                base64_image = base64.b64encode(image_bytes).decode('utf-8')
+                image_url = f"data:image/jpeg;base64,{base64_image}"
+
+                payload = {
+                    "image_url": image_url,
+                    "user_id": user_id,
+                    "category": category.lower()
+                }
+
+                try:
+                    response = requests.post("http://127.0.0.1:5000/parse-receipt", json=payload)
+                    if response.status_code == 200:
+                        st.success("🧾 Receipt parsed and transaction added successfully!")
+                    else:
+                        st.error(f"❌ Error: {response.json().get('error')}")
+                except Exception as e:
+                    st.error(f"⚠️ API call failed: {str(e)}")
+            else:
+                st.warning("📎 Please upload a receipt image first.")
 
     # ------------------ Transaction History ------------------
     st.subheader("📊 Transaction History")
@@ -118,3 +187,41 @@ def home_page(user_id):
         
     else:
         st.info("No transactions recorded yet. Add your first transaction above! 🚀")
+        # ------------------ Recommendation Section ------------------
+    with st.expander("🤖 Want Some Recommendation?"):
+        if st.button("💡 Get Recommendation"):
+            with st.spinner("Analyzing your financial data..."):
+                result = fetch_recommendations(user_id)
+
+            if "error" in result:
+                st.error(f"❌ {result['error']}")
+            else:
+                res = result["response"]
+
+                # Show Recommendations
+                st.markdown("### 🧠 Smart Financial Recommendations")
+                for idx, rec in enumerate(res["recommendations"], 1):
+                    content = f"**{idx}.** {rec}"
+                    typewriter_effect(content)
+
+                # Show Action Items
+                st.markdown("### 📌 Actionable Items")
+                for idx, action in enumerate(res["action_items"], 1):
+                    content = f"- {action}"
+                    typewriter_effect(content)
+
+                # Show Risk Assessment with formatting and typing effect
+                # Risk Assessment section (plain formatting with typing effect)
+                st.markdown("### 🚨 Risk Assessment")
+
+                # Optional mapping for better readability
+                risk_titles = {
+                    "debt_risk": "Debt Risk",
+                    "savings_risk": "Savings Risk",
+                    "subscription_risk": "Subscription Risk"
+                }
+
+                for key, value in res["risk_assessment"].items():
+                    title = risk_titles.get(key, key.replace("_", " ").title())
+                    content = f"**{title}**: {value}"
+                    typewriter_effect(content)

@@ -1,6 +1,7 @@
 import streamlit as st
 from pymongo import MongoClient
 import pandas as pd
+import requests
 
 def budget_planning_page(user_id):
     st.title("Budget Planning")
@@ -13,6 +14,26 @@ def budget_planning_page(user_id):
 
     # Define categories
     categories = ['Housing', 'Food', 'Transportation', 'Entertainment', 'Other']
+    
+    with st.expander("🧠 Generate Budget from Prompt"):
+        prompt = st.text_area("Describe your budgeting needs", placeholder="e.g. I earn ₹50000 per month and want to save ₹10000. Allocate the rest across housing, food, travel, and fun.")
+        if st.button("🪄 Generate Budget from AI"):
+            if prompt.strip() != "":
+                payload = {
+                    "user_id": user_id,
+                    "description": prompt
+                }
+                try:
+                    response = requests.post("http://127.0.0.1:5000/generate-budget", json=payload)
+                    if response.status_code == 200:
+                        st.success("🎯 Budget generated successfully using AI!")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ Error: {response.json().get('error')}")
+                except Exception as e:
+                    st.error(f"⚠️ Request failed: {str(e)}")
+            else:
+                st.warning("✍️ Please enter a description prompt.")
 
     # Set Budget Section
     st.subheader("Set Your Budgets")
@@ -63,7 +84,7 @@ def budget_planning_page(user_id):
         existing_alloc = next((item for item in user_budget['budget_data']['expenses'] if item['category'] == category), None)
         default_val = existing_alloc['allocated_amount'] if existing_alloc else 0.0
 
-        amount = st.number_input(f"Budget for {category}", min_value=0.0, step=100.0, format="%.2f", value=default_val, key=category)
+        amount = st.number_input(f"Budget for {category}", min_value=float(0), step=float(100), format="%.2f", value=float(default_val), key=category)
 
         if st.button(f"Save Budget for {category}", key=f"save_{category}"):
             budgets_collection.update_one(

@@ -161,14 +161,6 @@ def main():
                 st.session_state.current_page = "Subscription Manager"
                 st.rerun()
             
-            if st.button("🤖 AI Assistant", use_container_width=True):
-                st.session_state.current_page = "AI"
-                st.rerun()
-                
-            if st.button("⚙️ Settings", use_container_width=True):
-                st.session_state.current_page = "Settings"
-                st.rerun()
-            
             st.markdown("---")
             if st.button("Sign Out", use_container_width=True):
                 success, msg = logout_user()
@@ -190,12 +182,6 @@ def main():
             debts_page(st.session_state.user["id"])
         elif st.session_state.current_page == "Subscription Manager":
             subscription_page(st.session_state.user["id"])
-        elif st.session_state.current_page == "AI":
-            st.title("AI Assistant")
-            st.info("AI assistant features will appear here.")
-        elif st.session_state.current_page == "Settings":
-            st.title("Settings")
-            st.info("Manage your account settings here.")
     else:
         st.title("Welcome to Finance AI")
         
