@@ -10,21 +10,16 @@ from typing import List, Dict, Union, Optional
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-# from dotenv import load_dotenv
-# import os
-import streamlit as st
+from dotenv import load_dotenv
+import os
 from datetime import datetime
 from pymongo import MongoClient
 
 # Load environment variables
-# load_dotenv()
-# API_KEY = os.environ.get("GROQ_API_KEY")
-# MODEL_NAME = os.environ.get("MODEL_NAME")  # Default to a strong model
-# MONGODB_URI = os.environ.get("MONGODB_URI")
-
-API_KEY = st.secrets["GROQ_API_KEY"]
-MODEL_NAME = st.secrets.get("MODEL_NAME")
-MONGO_URI = st.secrets["MONGO_URI"]
+load_dotenv()
+API_KEY = os.environ.get("GROQ_API_KEY")
+MODEL_NAME = os.environ.get("MODEL_NAME")  # Default to a strong model
+MONGO_URI = os.environ.get("MONGO_URI")
 
 # 📦 Define Product & Receipt data structures
 class Product(BaseModel):

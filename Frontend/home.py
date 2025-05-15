@@ -8,6 +8,8 @@ import json
 from bson import ObjectId
 import time
 
+BACKEND_URL = st.secrets["BACKEND_URL"]
+
 # ------------------ MongoDB Utilities ------------------
 def add_transaction(transactions):
     client = MongoClient(st.secrets["MONGO_URI"])
@@ -80,7 +82,7 @@ class MongoJSONEncoder(json.JSONEncoder):
 def fetch_recommendations(user_id):
     try:
         response = requests.post(
-            url="http://127.0.0.1:5000/get-recommendations",
+            url=f"{BACKEND_URL}/get-recommendations",
             json={"user_id": user_id},
             timeout=60
         )
@@ -150,7 +152,7 @@ def home_page(user_id):
                 }
 
                 try:
-                    response = requests.post("http://127.0.0.1:5000/parse-receipt", json=payload)
+                    response = requests.post(f"{BACKEND_URL}/parse-receipt", json=payload)
                     if response.status_code == 200:
                         st.success("🧾 Receipt parsed and transaction added successfully!")
                     else:

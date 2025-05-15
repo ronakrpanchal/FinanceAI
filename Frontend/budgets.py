@@ -4,6 +4,9 @@ import pandas as pd
 import requests
 
 def budget_planning_page(user_id):
+    
+    BACKEND_URL = st.secrets["BACKEND_URL"]
+    
     st.title("Budget Planning")
 
     # MongoDB connection
@@ -24,7 +27,7 @@ def budget_planning_page(user_id):
                     "description": prompt
                 }
                 try:
-                    response = requests.post("http://127.0.0.1:5000/generate-budget", json=payload)
+                    response = requests.post(f"{BACKEND_URL}/generate-budget", json=payload)
                     if response.status_code == 200:
                         st.success("🎯 Budget generated successfully using AI!")
                         st.rerun()
