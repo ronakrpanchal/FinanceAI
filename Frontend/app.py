@@ -1,8 +1,8 @@
 import streamlit as st
 from pymongo import MongoClient
 import re
-import os
-from dotenv import load_dotenv
+# import os
+# from dotenv import load_dotenv
 import bcrypt
 from datetime import datetime
 from db import create_mongodb_structure
@@ -12,10 +12,12 @@ from debts import debts_page
 from subscriptions import subscription_page
 
 # Load environment variables
-load_dotenv()
+# load_dotenv()
 
 # MongoDB connection string
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+# MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+
+MONGO_URI = st.secrets["MONGO_URI"]
 
 # Initialize MongoDB client
 try:
@@ -120,11 +122,11 @@ def logout_user():
 # Streamlit app
 def main():
     create_mongodb_structure()
-    st.set_page_config(
-        page_title="Finance AI",
-        page_icon="💰",
-        layout="wide"
-    )
+    # st.set_page_config(
+    #     page_title="Finance AI",
+    #     page_icon="💰",
+    #     layout="wide"
+    # )
     
     # Session state init
     if "authenticated" not in st.session_state:

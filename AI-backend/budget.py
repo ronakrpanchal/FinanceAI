@@ -1,18 +1,151 @@
-from typing import List, Optional
+# from typing import List, Optional
+# from pydantic import BaseModel
+# from langchain_groq import ChatGroq
+# from langchain_core.prompts import ChatPromptTemplate
+# from langchain_core.output_parsers import JsonOutputParser
+# import json
+# from dotenv import load_dotenv
+# import os
+# from pymongo import MongoClient
+
+# load_dotenv()
+
+# API_KEY = os.environ.get("GROQ_API_KEY")
+# MODEL_NAME = os.environ.get('MODEL_NAME')
+# MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
+
+# # ---------------------- Pydantic Models ---------------------- #
+
+# class BudgetCategory(BaseModel):
+#     category: str
+#     allocated_amount: float
+
+# class Budget(BaseModel):
+#     income: float
+#     savings: float
+#     expenses: List[BudgetCategory]
+
+# # ---------------------- Model Loader ---------------------- #
+
+# def load_model():
+#     llm = ChatGroq(
+#         model_name=MODEL_NAME,
+#         temperature=0.7,
+#         api_key=API_KEY
+#     )
+
+#     parser = JsonOutputParser(pydantic_object=Budget)
+
+#     prompt = ChatPromptTemplate.from_messages([
+#         ("system", """Extract budget details into JSON with this structure:
+#             {{
+#                 "income": income_value,
+#                 "savings": savings_value,
+#                 "expenses": [
+#                     {{"category": "category_name", "allocated_amount": amount}}
+#                 ]
+#             }}"""),
+#         ("user", "{input}")
+#     ])
+
+#     chain = prompt | llm | parser
+#     return chain
+
+# # ---------------------- Budget Parser ---------------------- #
+
+# def parse_budget(description: str) -> dict:
+#     chain_ = load_model()
+#     result = chain_.invoke({"input": description})
+#     save_json_to_file(result, 'budget_data.json')
+#     return result
+
+# # ---------------------- File Utils ---------------------- #
+
+# def save_json_to_file(data, filename):
+#     with open(filename, 'w') as json_file:
+#         json.dump(data, json_file, indent=2)
+
+# # ---------------------- MongoDB Utils ---------------------- #
+
+# def get_mongodb_connection():
+#     client = MongoClient(MONGO_URI)
+#     return client
+
+# def get_user_budget(user_id):
+#     client = get_mongodb_connection()
+#     db = client['finance_ai']
+#     budgets_collection = db['budgets']
+    
+#     budget = budgets_collection.find_one({'user_id': user_id})
+#     client.close()
+    
+#     return budget
+
+# # ---------------------- Budget Merger ---------------------- #
+
+# def merge_budget_data(existing: dict, new: dict) -> dict:
+#     merged = existing.copy()
+
+#     # Update income if provided
+#     if 'income' in new and new['income'] != 0:
+#         merged['income'] = new['income']
+
+#     # Update savings if provided
+#     if 'savings' in new and new['savings'] != 0:
+#         merged['savings'] = new['savings']
+
+#     # Convert existing expenses to dict for merging
+#     existing_expenses = {item['category'].lower(): item for item in merged.get('expenses', [])}
+
+#     for new_item in new.get('expenses', []):
+#         cat = new_item['category'].lower()
+#         if cat in existing_expenses:
+#             existing_expenses[cat]['allocated_amount'] = new_item['allocated_amount']
+#         else:
+#             existing_expenses[cat] = new_item
+
+#     merged['expenses'] = list(existing_expenses.values())
+#     return merged
+
+# # ---------------------- Save to DB ---------------------- #
+
+# def save_in_db(user_id, response):
+#     client = get_mongodb_connection()
+#     db = client['finance_ai']
+#     budgets_collection = db['budgets']
+
+#     user_doc = budgets_collection.find_one({'user_id': user_id})
+
+#     if user_doc and 'budget_data' in user_doc:
+#         existing_budget = user_doc['budget_data']
+#         merged_budget = merge_budget_data(existing_budget, response)
+#     else:
+#         merged_budget = response  # No existing budget
+
+#     budgets_collection.update_one(
+#         {'user_id': user_id},
+#         {'$set': {'budget_data': merged_budget}},
+#         upsert=True
+#     )
+
+#     save_json_to_file(merged_budget, 'merged_budget.json')  # Optional debug output
+#     client.close()
+
+# # ---------------------- Main Entry Point ---------------------- #
+
+# # if __name__ == "__main__":
+# #     response = parse_budget("Set the budget for housing to 10000")
+# #     print(response)
+# #     save_in_db('68245ee0af6dbf213330448c', response)
+# #     print("Budget data saved successfully.")
+from typing import List
 from pydantic import BaseModel
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-import json
-from dotenv import load_dotenv
-import os
 from pymongo import MongoClient
-
-load_dotenv()
-
-API_KEY = os.environ.get("GROQ_API_KEY")
-MODEL_NAME = os.environ.get('MODEL_NAME')
-MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
+import streamlit as st
+import json
 
 # ---------------------- Pydantic Models ---------------------- #
 
@@ -25,26 +158,26 @@ class Budget(BaseModel):
     savings: float
     expenses: List[BudgetCategory]
 
-# ---------------------- Model Loader ---------------------- #
+# ---------------------- LangChain Model Loader ---------------------- #
 
 def load_model():
     llm = ChatGroq(
-        model_name=MODEL_NAME,
+        model_name=st.secrets["MODEL_NAME"],
         temperature=0.7,
-        api_key=API_KEY
+        api_key=st.secrets["GROQ_API_KEY"]
     )
 
     parser = JsonOutputParser(pydantic_object=Budget)
 
     prompt = ChatPromptTemplate.from_messages([
         ("system", """Extract budget details into JSON with this structure:
-            {{
-                "income": income_value,
-                "savings": savings_value,
-                "expenses": [
-                    {{"category": "category_name", "allocated_amount": amount}}
-                ]
-            }}"""),
+        {{
+            "income": income_value,
+            "savings": savings_value,
+            "expenses": [
+                {{"category": "category_name", "allocated_amount": amount}}
+            ]
+        }}"""),
         ("user", "{input}")
     ])
 
@@ -54,12 +187,12 @@ def load_model():
 # ---------------------- Budget Parser ---------------------- #
 
 def parse_budget(description: str) -> dict:
-    chain_ = load_model()
-    result = chain_.invoke({"input": description})
-    save_json_to_file(result, 'budget_data.json')
+    chain = load_model()
+    result = chain.invoke({"input": description})
+    save_json_to_file(result, 'budget_data.json')  # optional debug
     return result
 
-# ---------------------- File Utils ---------------------- #
+# ---------------------- File Utility ---------------------- #
 
 def save_json_to_file(data, filename):
     with open(filename, 'w') as json_file:
@@ -67,8 +200,9 @@ def save_json_to_file(data, filename):
 
 # ---------------------- MongoDB Utils ---------------------- #
 
+@st.cache_resource
 def get_mongodb_connection():
-    client = MongoClient(MONGO_URI)
+    client = MongoClient(st.secrets["MONGO_URI"])
     return client
 
 def get_user_budget(user_id):
@@ -77,8 +211,6 @@ def get_user_budget(user_id):
     budgets_collection = db['budgets']
     
     budget = budgets_collection.find_one({'user_id': user_id})
-    client.close()
-    
     return budget
 
 # ---------------------- Budget Merger ---------------------- #
@@ -86,15 +218,11 @@ def get_user_budget(user_id):
 def merge_budget_data(existing: dict, new: dict) -> dict:
     merged = existing.copy()
 
-    # Update income if provided
     if 'income' in new and new['income'] != 0:
         merged['income'] = new['income']
-
-    # Update savings if provided
     if 'savings' in new and new['savings'] != 0:
         merged['savings'] = new['savings']
 
-    # Convert existing expenses to dict for merging
     existing_expenses = {item['category'].lower(): item for item in merged.get('expenses', [])}
 
     for new_item in new.get('expenses', []):
@@ -120,7 +248,7 @@ def save_in_db(user_id, response):
         existing_budget = user_doc['budget_data']
         merged_budget = merge_budget_data(existing_budget, response)
     else:
-        merged_budget = response  # No existing budget
+        merged_budget = response
 
     budgets_collection.update_one(
         {'user_id': user_id},
@@ -128,13 +256,13 @@ def save_in_db(user_id, response):
         upsert=True
     )
 
-    save_json_to_file(merged_budget, 'merged_budget.json')  # Optional debug output
-    client.close()
+    save_json_to_file(merged_budget, 'merged_budget.json')  # optional debug
 
-# ---------------------- Main Entry Point ---------------------- #
+# ---------------------- Main Entry (for local testing) ---------------------- #
+# Uncomment below to test locally
 
 # if __name__ == "__main__":
-#     response = parse_budget("Set the budget for housing to 10000")
+#     response = parse_budget("Set the budget for entertainment to 800 and food to 1200")
 #     print(response)
-#     save_in_db('68245ee0af6dbf213330448c', response)
-#     print("Budget data saved successfully.")
+#     save_in_db('user123', response)
+#     print("Budget saved.")

@@ -1,7 +1,7 @@
 import json
-import os
+# import os
 from datetime import datetime
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from pymongo import MongoClient
 from bson import ObjectId
 from langchain_groq import ChatGroq
@@ -9,6 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
 import pandas as pd
+import streamlit as st
 
 # ----------------------- Custom JSON Encoder for MongoDB ObjectId -----------------------
 class MongoJSONEncoder(json.JSONEncoder):
@@ -20,10 +21,14 @@ class MongoJSONEncoder(json.JSONEncoder):
         return super().default(obj)
 
 # ----------------------- Load Environment -----------------------
-load_dotenv()
-API_KEY = os.environ.get("GROQ_API_KEY")
-MODEL_NAME = os.environ.get("MODEL_NAME")
-MONGO_URI = os.environ.get("MONGO_URI")
+# load_dotenv()
+# API_KEY = os.environ.get("GROQ_API_KEY")
+# MODEL_NAME = os.environ.get("MODEL_NAME")
+# MONGO_URI = os.environ.get("MONGO_URI")
+
+API_KEY = st.secrets["GROQ_API_KEY"]
+MODEL_NAME = st.secrets.get("MODEL_NAME", "llama3-70b-8192")
+MONGO_URI = st.secrets["MONGO_URI"]
 
 # ----------------------- MongoDB Setup -----------------------
 client = MongoClient(MONGO_URI)

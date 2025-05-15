@@ -10,14 +10,14 @@ import time
 
 # ------------------ MongoDB Utilities ------------------
 def add_transaction(transactions):
-    client = MongoClient('mongodb://localhost:27017/')
+    client = MongoClient(st.secrets["MONGO_URI"])
     db = client['finance_ai']
     collection = db['transactions']
     collection.insert_one(transactions)
     client.close()
 
 def get_transactions(user_id):
-    client = MongoClient('mongodb://localhost:27017/')
+    client = MongoClient(st.secrets["MONGO_URI"])
     db = client['finance_ai']
     collection = db['transactions']
     transactions = list(collection.find({"user_id": user_id}))
@@ -25,7 +25,7 @@ def get_transactions(user_id):
     return transactions
 
 def auto_add_subscriptions(user_id):
-    client = MongoClient("mongodb://localhost:27017/")
+    client = MongoClient(st.secrets["MONGO_URI"])
     db = client['finance_ai']
     subscriptions = db['subscriptions']
     transactions = db['transactions']

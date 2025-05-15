@@ -7,7 +7,7 @@ def budget_planning_page(user_id):
     st.title("Budget Planning")
 
     # MongoDB connection
-    client = MongoClient('mongodb://localhost:27017/')
+    client = MongoClient(st.secrets["MONGO_URI"])
     db = client['finance_ai']
     budgets_collection = db['budgets']
     transactions_collection = db['transactions']

@@ -10,16 +10,21 @@ from typing import List, Dict, Union, Optional
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from dotenv import load_dotenv
-import os
+# from dotenv import load_dotenv
+# import os
+import streamlit as st
 from datetime import datetime
 from pymongo import MongoClient
 
 # Load environment variables
-load_dotenv()
-API_KEY = os.environ.get("GROQ_API_KEY")
-MODEL_NAME = os.environ.get("MODEL_NAME", "llama3-70b-8192")  # Default to a strong model
-MONGODB_URI = os.environ.get("MONGODB_URI")
+# load_dotenv()
+# API_KEY = os.environ.get("GROQ_API_KEY")
+# MODEL_NAME = os.environ.get("MODEL_NAME")  # Default to a strong model
+# MONGODB_URI = os.environ.get("MONGODB_URI")
+
+API_KEY = st.secrets["GROQ_API_KEY"]
+MODEL_NAME = st.secrets.get("MODEL_NAME")
+MONGO_URI = st.secrets["MONGO_URI"]
 
 # 📦 Define Product & Receipt data structures
 class Product(BaseModel):
@@ -307,7 +312,7 @@ def receipt_model(image_data):
 def save_receipt_in_mongodb(user_id, llm_response, date, category):
     """Save receipt data to MongoDB"""
     try:
-        client = MongoClient(MONGODB_URI)
+        client = MongoClient(MONGO_URI)
         db = client["finance_ai"]
         collection = db["transactions"]
         

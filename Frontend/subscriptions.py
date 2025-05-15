@@ -7,7 +7,7 @@ def subscription_page(user_id):
     st.title("📅 Subscription Manager")
 
     # MongoDB connection
-    client = MongoClient("mongodb://localhost:27017/")
+    client = MongoClient(st.secrets["MONGO_URI"])
     db = client['finance_ai']
     subscriptions_collection = db['subscriptions']
 

@@ -7,7 +7,7 @@ def debts_page(user_id):
     st.title("Debt & Loan Tracker")
 
     # MongoDB connection
-    client = MongoClient("mongodb://localhost:27017/")
+    client = MongoClient(st.secrets["MONGO_URI"])
     db = client["finance_ai"]
     debts_collection = db["debts"]
 
