@@ -6,6 +6,10 @@ from dotenv import load_dotenv
 import bcrypt
 from datetime import datetime
 from db import create_mongodb_structure
+from home import home_page
+from budgets import budget_planning_page
+from debts import debts_page
+from subscriptions import subscription_page
 
 # Load environment variables
 load_dotenv()
@@ -115,7 +119,6 @@ def logout_user():
 
 # Streamlit app
 def main():
-    
     create_mongodb_structure()
     st.set_page_config(
         page_title="Finance AI",
@@ -146,6 +149,18 @@ def main():
                 st.session_state.current_page = "Home"
                 st.rerun()
                 
+            if st.button("💰 Budget Planning", use_container_width=True):
+                st.session_state.current_page = "Budget Planning"
+                st.rerun()
+                
+            if st.button("Debt Management", use_container_width=True):
+                st.session_state.current_page = "Debt Management"
+                st.rerun()
+            
+            if st.button("📅 Subscription Manager", use_container_width=True):
+                st.session_state.current_page = "Subscription Manager"
+                st.rerun()
+            
             if st.button("🤖 AI Assistant", use_container_width=True):
                 st.session_state.current_page = "AI"
                 st.rerun()
@@ -168,8 +183,13 @@ def main():
     # Main content
     if st.session_state.authenticated:
         if st.session_state.current_page == "Home":
-            st.title("Home Dashboard")
-            st.info("Welcome to your financial dashboard.")
+            home_page(st.session_state.user["id"])
+        elif st.session_state.current_page == "Budget Planning":
+            budget_planning_page(st.session_state.user["id"])
+        elif st.session_state.current_page == "Debt Management":
+            debts_page(st.session_state.user["id"])
+        elif st.session_state.current_page == "Subscription Manager":
+            subscription_page(st.session_state.user["id"])
         elif st.session_state.current_page == "AI":
             st.title("AI Assistant")
             st.info("AI assistant features will appear here.")
