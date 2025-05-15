@@ -8,3 +8,4 @@ pytesseract
 pydantic
 requests 
 pymongo
+bcrypt
