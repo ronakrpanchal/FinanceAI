@@ -122,7 +122,7 @@ def budget_planning_page(user_id):
         # Step 1: Normalize and map subcategories
         expenses_df['category'] = expenses_df['category'].str.strip().str.capitalize()
 
-        # Mapping subcategories (you can expand this as needed)
+        # Mapping subcategories
         category_mapping = {
             "Groceries": "Food",
             "Dining": "Food",
@@ -134,23 +134,31 @@ def budget_planning_page(user_id):
             "Concert": "Entertainment",
             # Add more mappings if needed
         }
-        expenses_df['Mapped Category'] = expenses_df['category'].map(category_mapping).fillna('Others')
+        
+        # Make sure to handle missing mappings correctly
+        expenses_df['Mapped Category'] = expenses_df['category'].apply(
+            lambda x: category_mapping.get(x, "Other")  # Use "Other" instead of "Others" to match your categories
+        )
 
         # Step 2: Aggregate expenses
         total_exp = expenses_df.groupby('Mapped Category')['amount'].sum().abs().reset_index(name='Actual Expense (₹)')
 
         # Step 3: Load budget data
         budget_df = pd.DataFrame(user_budget['budget_data']['expenses'])
-        budget_df.rename(columns={"category": "Mapped Category", "allocated_amount": "Budget (₹)"}, inplace=True)
+        
+        # Fix the column rename
+        if not budget_df.empty:
+            budget_df.rename(columns={"category": "Mapped Category", "allocated_amount": "Budget (₹)"}, inplace=True)
 
-        # Step 4: Merge and compute remaining & status
-        comparison = pd.merge(budget_df, total_exp, on='Mapped Category', how='left').fillna(0)
-        comparison['Remaining (₹)'] = comparison['Budget (₹)'] - comparison['Actual Expense (₹)']
-        comparison['Status'] = comparison['Remaining (₹)'].apply(lambda x: "Over Budget" if x < 0 else "Within Budget")
+            # Step 4: Merge and compute remaining & status - use outer join to include all categories
+            comparison = pd.merge(budget_df, total_exp, on='Mapped Category', how='outer').fillna(0)
+            comparison['Remaining (₹)'] = comparison['Budget (₹)'] - comparison['Actual Expense (₹)']
+            comparison['Status'] = comparison['Remaining (₹)'].apply(lambda x: "Over Budget" if x < 0 else "Within Budget")
 
-        # Display result
-        st.dataframe(comparison)
-
+            # Display result
+            st.dataframe(comparison)
+        else:
+            st.info("No budget allocations yet.")
     else:
         st.info("No expenses recorded yet.")
 
