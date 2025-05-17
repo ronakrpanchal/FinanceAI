@@ -29,7 +29,7 @@ def subscription_page(user_id):
         }
         subscriptions_collection.insert_one(new_sub)
         st.success(f"Subscription to {name} added!")
-        st.experimental_rerun()
+        st.rerun()
 
     # View Subscriptions
     st.subheader("📋 Your Subscriptions")
@@ -61,11 +61,11 @@ def subscription_page(user_id):
                         )
                         st.success(f"{sub['name']} updated.")
                         st.session_state.edit_id = None
-                        st.experimental_rerun()
+                        st.rerun()
 
                     if st.button("Cancel", key=f"cancel_{sub_id}"):
                         st.session_state.edit_id = None
-                        st.experimental_rerun()
+                        st.rerun()
                 else:
                     # Normal view
                     st.markdown(f"**Name:** {sub['name']}")
@@ -83,7 +83,7 @@ def subscription_page(user_id):
                     st.warning(f"{sub['name']} subscription cancelled.")
                     if st.session_state.edit_id == sub_id:
                         st.session_state.edit_id = None
-                    st.experimental_rerun()
+                    st.rerun()
     else:
         st.info("No subscriptions found.")
 
