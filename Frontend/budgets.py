@@ -116,7 +116,7 @@ def budget_planning_page(user_id):
     
     # Budget vs Expenses
     st.subheader("Budget vs. Expenses")
-    expenses_df = pd.DataFrame(list(transactions_collection.find({'user_id': user_id, 'amount_type': 'expense'})))
+    expenses_df = pd.DataFrame(list(transactions_collection.find({'user_id': user_id, 'amount_type': 'debit'})))
 
     if not expenses_df.empty:
         # Step 1: Normalize and map subcategories
