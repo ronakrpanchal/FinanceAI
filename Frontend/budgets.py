@@ -114,47 +114,34 @@ def budget_planning_page(user_id):
     else:
         st.info("No budget allocations yet.")
     
-    # Budget vs Expenses
+    # Budget vs Expenses - simplified version without Mapped Category
     st.subheader("Budget vs. Expenses")
     expenses_df = pd.DataFrame(list(transactions_collection.find({'user_id': user_id, 'amount_type': 'debit'})))
 
     if not expenses_df.empty:
-        # Step 1: Normalize and map subcategories
+        # Normalize categories
         expenses_df['category'] = expenses_df['category'].str.strip().str.capitalize()
-
-        # Mapping subcategories
-        category_mapping = {
-            "Groceries": "Food",
-            "Dining": "Food",
-            "Rent": "Housing",
-            "Utilities": "Housing",
-            "Fuel": "Transportation",
-            "Bus": "Transportation",
-            "Movie": "Entertainment",
-            "Concert": "Entertainment",
-            # Add more mappings if needed
-        }
         
-        # Make sure to handle missing mappings correctly
-        expenses_df['Mapped Category'] = expenses_df['category'].apply(
-            lambda x: category_mapping.get(x, "Other")  # Use "Other" instead of "Others" to match your categories
-        )
-
-        # Step 2: Aggregate expenses
-        total_exp = expenses_df.groupby('Mapped Category')['amount'].sum().abs().reset_index(name='Actual Expense (₹)')
-
-        # Step 3: Load budget data
+        # Aggregate expenses by category
+        total_exp = expenses_df.groupby('category')['amount'].sum().abs().reset_index(name='Actual Expense (₹)')
+        
+        # Load budget data
         budget_df = pd.DataFrame(user_budget['budget_data']['expenses'])
         
-        # Fix the column rename
         if not budget_df.empty:
-            budget_df.rename(columns={"category": "Mapped Category", "allocated_amount": "Budget (₹)"}, inplace=True)
-
-            # Step 4: Merge and compute remaining & status - use outer join to include all categories
-            comparison = pd.merge(budget_df, total_exp, on='Mapped Category', how='outer').fillna(0)
+            # Rename columns for clarity
+            budget_df.rename(columns={"category": "category", "allocated_amount": "Budget (₹)"}, inplace=True)
+            
+            # Merge budget and expenses on category
+            comparison = pd.merge(budget_df, total_exp, on='category', how='outer').fillna(0)
+            
+            # Calculate remaining budget and status
             comparison['Remaining (₹)'] = comparison['Budget (₹)'] - comparison['Actual Expense (₹)']
             comparison['Status'] = comparison['Remaining (₹)'].apply(lambda x: "Over Budget" if x < 0 else "Within Budget")
-
+            
+            # Clean up column name
+            comparison.rename(columns={"category": "Category"}, inplace=True)
+            
             # Display result
             st.dataframe(comparison)
         else:
