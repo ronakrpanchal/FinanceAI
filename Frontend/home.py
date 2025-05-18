@@ -41,7 +41,7 @@ def auto_add_subscriptions(user_id):
     else:
         end_date = datetime(today.year, today.month + 1, 1)
 
-    subs = list(subscriptions.find({"user_id": user_id}))
+    subs = list(subscriptions.find({"user_id": user_id}).sort("-transaction_date"))
 
     for sub in subs:
         sub_name = sub['name']
