@@ -41,7 +41,7 @@ def auto_add_subscriptions(user_id):
     else:
         end_date = datetime(today.year, today.month + 1, 1)
 
-    subs = list(subscriptions.find({"user_id": user_id}).sort("-transaction_date"))
+    subs = list(subscriptions.find({"user_id": user_id}))
 
     for sub in subs:
         sub_name = sub['name']
@@ -175,6 +175,8 @@ def home_page(user_id):
         df = df.drop(columns=["_id", "user_id"])
 
         df["transaction_date"] = pd.to_datetime(df["transaction_date"]).dt.strftime("%b %d, %Y")
+        
+        df.sort_values(by="transaction_date", ascending=False, inplace=True)
 
         # Color styling
         def highlight_type(val):
