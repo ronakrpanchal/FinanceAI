@@ -10,6 +10,8 @@ from home import home_page
 from budgets import budget_planning_page
 from debts import debts_page
 from subscriptions import subscription_page
+from dashboard import render_dashboard
+from bson import ObjectId
 
 # Load environment variables
 # load_dotenv()
@@ -30,6 +32,7 @@ try:
     subscriptions_collection = db["subscriptions"]
     debts_collection = db["debts"]
     budgets_collection = db["budgets"]
+    user_profiles_collection = db["user_profiles"]
 except Exception as e:
     st.error(f"Failed to connect to MongoDB: {e}")
     st.stop()
@@ -118,6 +121,40 @@ def logout_user():
         return True, "Logged out successfully"
     except Exception as e:
         return False, f"Logout error: {str(e)}"
+    
+# Onboarding form after registration
+def collect_initial_financial_info(user_id):
+    st.title("Initial Financial Setup")
+
+    with st.form("initial_financial_form"):
+        cash = st.number_input("💵 Current Cash Holdings", min_value=0.0)
+        online = st.number_input("🏦 Online Holdings (Bank, UPI, etc.)", min_value=0.0)
+        stocks = st.number_input("📈 Investments in Stocks", min_value=0.0)
+        savings = st.number_input("💰 Total Savings till now", min_value=0.0)
+        submit = st.form_submit_button("Save and Continue")
+
+        if submit:
+            try:
+                data = {
+                    "user_id": user_id,
+                    "cash_holdings": cash,
+                    "online_holdings": online,
+                    "stock_investments": stocks,
+                    "total_savings": savings,
+                    "created_at": datetime.now()
+                }
+                user_profiles_collection.insert_one(data)
+                st.success("Information saved successfully!")
+                st.session_state.authenticated = True
+                st.session_state.user = {
+                    "id": user_id,
+                    "email": users_collection.find_one({"_id": ObjectId(user_id)})["username"]
+                }
+                st.session_state.current_page = "Home"
+                del st.session_state.user_id_pending_info
+                st.rerun()
+            except Exception as e:
+                st.error(f"Failed to save data: {str(e)}")
 
 # Streamlit app
 def main():
@@ -137,6 +174,10 @@ def main():
         st.session_state.current_page = "Home"
     if "auth_tab" not in st.session_state:
         st.session_state.auth_tab = "Sign In"
+        
+    if "user_id_pending_info" in st.session_state:
+        collect_initial_financial_info(st.session_state.user_id_pending_info)
+        return
     
     # Sidebar
     with st.sidebar:
@@ -162,6 +203,10 @@ def main():
             if st.button("📅 Subscription Manager", use_container_width=True):
                 st.session_state.current_page = "Subscription Manager"
                 st.rerun()
+                
+            if st.button("📊 Dashboard", use_container_width=True):
+                st.session_state.current_page = "Dashboard"
+                st.rerun()
             
             st.markdown("---")
             if st.button("Sign Out", use_container_width=True):
@@ -184,6 +229,8 @@ def main():
             debts_page(st.session_state.user["id"])
         elif st.session_state.current_page == "Subscription Manager":
             subscription_page(st.session_state.user["id"])
+        elif st.session_state.current_page == "Dashboard":
+            render_dashboard(st.session_state.user["id"])
     else:
         st.title("Welcome to Finance AI")
         

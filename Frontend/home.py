@@ -11,6 +11,11 @@ import time
 BACKEND_URL = st.secrets["BACKEND_URL"]
 
 # ------------------ MongoDB Utilities ------------------
+def get_db():
+    client = MongoClient(st.secrets["MONGO_URI"])
+    db = client['finance_ai']
+    return db, client
+
 def add_transaction(transactions):
     client = MongoClient(st.secrets["MONGO_URI"])
     db = client['finance_ai']
@@ -105,6 +110,56 @@ def typewriter_effect(text, delay=0.005, is_markdown=True):
             placeholder.write(typed_text)
         time.sleep(delay)
 
+def update_user_profile(user_id, amount, amount_type, transaction_mode, category=None):
+    db, client = get_db()
+    profile = db['user_profiles'].find_one({"user_id": user_id})
+    if not profile:
+        client.close()
+        return
+
+    cash = float(profile.get("cash_holdings", 0))
+    online = float(profile.get("online_holdings", 0))
+    stock = float(profile.get("stock_investments", 0))
+    savings = float(profile.get("savings", 0))
+    total_savings = float(profile.get("total_savings", 0))
+
+    if transaction_mode == "cash" and category != "Savings":
+        if amount_type == "credit":
+            cash += amount
+        else:
+            cash = max(0, cash - amount)
+
+    elif transaction_mode == "online":
+        if amount_type == "credit":
+            online += amount
+        else:
+            online = max(0, online - amount)
+
+    elif transaction_mode == "stock":
+        if amount_type == "debit":
+            stock += amount
+            online = max(0, online - amount)
+        else:
+            online += amount
+            stock = max(0, stock - amount)
+
+    elif category == "Savings" and transaction_mode == "cash":
+        savings += amount
+        
+    total_savings = stock + savings
+
+    db['user_profiles'].update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "cash_holdings": cash,
+            "online_holdings": online,
+            "stock_investments": stock,
+            "savings": savings,
+            "total_savings": total_savings
+        }}
+    )
+    client.close()
+
 # ------------------ Main Page ------------------
 def home_page(user_id):
     # st.set_page_config(page_title="Finance Tracker", layout="centered")
@@ -114,23 +169,28 @@ def home_page(user_id):
         col1, col2 = st.columns(2)
         with col1:
             date = st.date_input("📅 Date", value=datetime.today())
-            category = st.selectbox("📂 Category", ["Food", "Travel", "Rent", "Salary", "Shopping", "Healthcare", "Utilities", "Miscellaneous"])
+            category = st.selectbox("📂 Category", ["Food", "Travel", "Rent", "Salary", "Shopping", "Healthcare", "Utilities", "Miscellaneous", "Savings"])
         with col2:
             amount = st.number_input("💸 Amount", min_value=0.0, format="%.2f")
             amount_type = st.radio("📈 Type", ["Income", "Expense"], horizontal=True)
-        
+
+        transaction_mode = st.selectbox("💳 Transaction Mode", ["cash", "online", "stock"])
         description = st.text_input("📝 Description")
 
         if st.button("✅ Add Transaction"):
+            trans_type = "credit" if amount_type == "Income" else "debit"
             transaction = {
                 "user_id": user_id,
                 "transaction_date": date.strftime("%Y-%m-%d"),
                 "amount": amount,
-                "amount_type": "credit" if amount_type == "Income" else "debit",
+                "amount_type": trans_type,
                 "category": category,
-                "description": description
+                "transaction_mode": transaction_mode,
+                "description": description,
+                "type": "manual"
             }
             add_transaction(transaction)
+            update_user_profile(user_id, amount, trans_type, transaction_mode, category=category)
             st.success("🎉 Transaction added successfully!")
             
     # ========== Section 2: Upload Receipt ==========
@@ -174,13 +234,16 @@ def home_page(user_id):
         df = pd.DataFrame(transactions)
         df = df.drop(columns=["_id", "user_id"])
 
-        df["transaction_date"] = pd.to_datetime(df["transaction_date"]).dt.strftime("%b %d, %Y")
+        df["transaction_date"] = pd.to_datetime(df["transaction_date"])
         
         df.sort_values(by="transaction_date", ascending=False, inplace=True)
+        
+        # Format the date
+        df["transaction_date"] = df["transaction_date"].dt.strftime("%b %d, %Y")
 
         # Color styling
         def highlight_type(val):
-            color = "lightgreen" if val == "debit" else "salmon"
+            color = "lightgreen" if val == "credit" else "salmon"
             return f"background-color: {color}"
 
         st.dataframe(
