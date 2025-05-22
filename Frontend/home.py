@@ -7,6 +7,7 @@ import base64
 import json
 from bson import ObjectId
 import time
+from utils.categories import get_user_categories, add_custom_category
 
 BACKEND_URL = st.secrets["BACKEND_URL"]
 
@@ -166,10 +167,38 @@ def home_page(user_id):
     st.title("💰 Personal Finance Tracker")
 
     with st.expander("➕ Add New Transaction", expanded=True):
+        # Step 1: Fetch categories for current user
+        all_categories = get_user_categories(user_id)
+        if not all_categories:
+            all_categories = [
+                "Food", "Travel", "Rent", "Salary", "Shopping",
+                "Healthcare", "Utilities", "Miscellaneous", "Savings"
+            ]
+
+        # Step 2: Show Add Custom Category Form
+        with st.form("add_custom_category_form"):
+            st.markdown("### ➕ Add a New Custom Category")
+            new_category = st.text_input("Enter new category name")
+            add_btn = st.form_submit_button("Add Category")
+
+            if add_btn:
+                new_category = new_category.strip()
+                if new_category:
+                    result = add_custom_category(user_id, new_category)
+                    if result == "duplicate":
+                        st.warning("⚠️ This category already exists.")
+                    else:
+                        st.success("✅ Category added successfully!")
+                        st.rerun()
+                else:
+                    st.warning("⚠️ Category cannot be empty.")
+
+        # Step 3: Transaction Form
+        st.markdown("### 📥 Record a Transaction")
         col1, col2 = st.columns(2)
         with col1:
             date = st.date_input("📅 Date", value=datetime.today())
-            category = st.selectbox("📂 Category", ["Food", "Travel", "Rent", "Salary", "Shopping", "Healthcare", "Utilities", "Miscellaneous", "Savings"])
+            category = st.selectbox("📂 Category", all_categories)
         with col2:
             amount = st.number_input("💸 Amount", min_value=0.0, format="%.2f")
             amount_type = st.radio("📈 Type", ["Income", "Expense"], horizontal=True)

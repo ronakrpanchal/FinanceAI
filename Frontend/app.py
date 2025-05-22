@@ -21,6 +21,7 @@ from bson import ObjectId
 
 MONGO_URI = st.secrets["MONGO_URI"]
 
+
 # Initialize MongoDB client
 try:
     client = MongoClient(MONGO_URI)
@@ -122,6 +123,8 @@ def logout_user():
     except Exception as e:
         return False, f"Logout error: {str(e)}"
     
+
+    
 # Onboarding form after registration
 def collect_initial_financial_info(user_id):
     st.title("Initial Financial Setup")
@@ -131,16 +134,33 @@ def collect_initial_financial_info(user_id):
         online = st.number_input("🏦 Online Holdings (Bank, UPI, etc.)", min_value=0.0)
         stocks = st.number_input("📈 Investments in Stocks", min_value=0.0)
         savings = st.number_input("💰 Total Savings till now", min_value=0.0)
+        # Predefined categories
+        predefined_categories = [
+            "Food", "Travel", "Rent", "Salary", "Shopping",
+            "Healthcare", "Utilities", "Miscellaneous", "Savings"
+        ]
+
+        selected_categories = st.multiselect(
+            "📂 Choose the Categories you want to track",
+            predefined_categories,
+            default=predefined_categories[:5]
+        )
+
+        custom_category_input = st.text_input("➕ Add any Custom Categories (comma-separated)")
         submit = st.form_submit_button("Save and Continue")
 
         if submit:
             try:
+                custom_categories = [cat.strip() for cat in custom_category_input.split(",") if cat.strip()]
+                final_categories = list(set(selected_categories + custom_categories))
+
                 data = {
                     "user_id": user_id,
                     "cash_holdings": cash,
                     "online_holdings": online,
                     "stock_investments": stocks,
                     "total_savings": savings,
+                    "custom_categories": final_categories,  # 👈 store all selected+custom
                     "created_at": datetime.now()
                 }
                 user_profiles_collection.insert_one(data)
