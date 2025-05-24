@@ -220,13 +220,13 @@ def budget_planning_page(user_id):
     #     st.info("No expenses recorded yet.")
     # Get current month and year
     now = datetime.now()
-    start_of_month = datetime(now.year, now.month, 1)
+    start_of_month = datetime(now.year, now.month, 1).strftime("%Y-%m-%d")
 
     # Optional: define start_of_next_month to be exclusive filter
     if now.month == 12:
-        start_of_next_month = datetime(now.year + 1, 1, 1)
+        start_of_next_month = datetime(now.year + 1, 1, 1).strftime("%Y-%m-%d")
     else:
-        start_of_next_month = datetime(now.year, now.month + 1, 1)
+        start_of_next_month = datetime(now.year, now.month + 1, 1).strftime("%Y-%m-%d")
 
     st.subheader("📊 Budget vs. Expenses (This Month Only)")
 
