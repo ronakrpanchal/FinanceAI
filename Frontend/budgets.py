@@ -3,6 +3,7 @@ from pymongo import MongoClient , DESCENDING
 import pandas as pd
 import requests
 from datetime import datetime
+from dateutil import parser
 
 def budget_planning_page(user_id):
     
@@ -227,17 +228,33 @@ def budget_planning_page(user_id):
         start_of_next_month = datetime(now.year + 1, 1, 1).strftime("%Y-%m-%d")
     else:
         start_of_next_month = datetime(now.year, now.month + 1, 1).strftime("%Y-%m-%d")
-
     st.subheader("📊 Budget vs. Expenses (This Month Only)")
 
-    # Filter debit transactions for current month
-    transactions = transactions_collection.find({
-        'user_id': user_id,
-        'amount_type': 'debit',
-        'transaction_date': {'$gte': start_of_month, '$lt': start_of_next_month}
-    })
+    # Define start and end of current month
+    today = datetime.today()
+    start_of_month = datetime(today.year, today.month, 1)
+    if today.month == 12:
+        start_of_next_month = datetime(today.year + 1, 1, 1)
+    else:
+        start_of_next_month = datetime(today.year, today.month + 1, 1)
 
-    expenses_df = pd.DataFrame(list(transactions))
+    # Step 1: Fetch all debit transactions for the user
+    transactions = list(transactions_collection.find({
+        'user_id': user_id,
+        'amount_type': 'debit'
+    }))
+
+    # Step 2: Filter transactions for current month based on string date parsing
+    monthly_transactions = []
+    for tx in transactions:
+        try:
+            tx_date = parser.parse(tx['transaction_date'])  # Parses string to datetime
+            if start_of_month <= tx_date < start_of_next_month:
+                monthly_transactions.append(tx)
+        except:
+            continue  # Skip invalid date formats
+
+    expenses_df = pd.DataFrame(monthly_transactions)
 
     if not expenses_df.empty:
         # Normalize categories
@@ -246,19 +263,18 @@ def budget_planning_page(user_id):
         # Aggregate monthly expenses by category
         total_exp = expenses_df.groupby('category')['amount'].sum().abs().reset_index(name='Actual Expense (₹)')
 
-        # Load budget data from budgets collection
+        # Load user budget
         user_budget = budgets_collection.find_one({"user_id": user_id})
         budget_df = pd.DataFrame(user_budget['budget_data']['expenses']) if user_budget else pd.DataFrame()
 
         if not budget_df.empty:
             budget_df.rename(columns={"category": "category", "allocated_amount": "Budget (₹)"}, inplace=True)
 
-            # Merge and compare
+            # Merge budget with actuals
             comparison = pd.merge(budget_df, total_exp, on='category', how='outer').fillna(0)
             comparison['Remaining (₹)'] = comparison['Budget (₹)'] - comparison['Actual Expense (₹)']
             comparison['Status'] = comparison['Remaining (₹)'].apply(lambda x: "Over Budget" if x < 0 else "Within Budget")
 
-            # Rename for display
             comparison.rename(columns={"category": "Category"}, inplace=True)
             st.dataframe(comparison)
         else:
