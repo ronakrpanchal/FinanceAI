@@ -99,10 +99,3 @@ def render_dashboard(user_id):
         title="📅 Income vs Expenses Over Time"
     )
     st.plotly_chart(fig2, use_container_width=True)
-
-
-# --- Run the dashboard with a specific user_id ---
-if __name__ == "__main__":
-    # Example hardcoded user_id for testing
-    example_user_id = "68260893a0f43b5eb09b5208"
-    render_dashboard(example_user_id)

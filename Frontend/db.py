@@ -1,13 +1,5 @@
 from pymongo import MongoClient
-# import os
-# from dotenv import load_dotenv
 import streamlit as st
-
-# # Load environment variables
-# load_dotenv()
-
-# # MongoDB connection string (replace with your own)
-# MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 
 @st.cache_resource
 def create_mongodb_structure():
@@ -44,6 +36,3 @@ def create_mongodb_structure():
     except Exception as e:
         print(f"Error creating MongoDB database: {e}")
         return None
-
-if __name__ == "__main__":
-    create_mongodb_structure()

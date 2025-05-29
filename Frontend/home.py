@@ -163,7 +163,6 @@ def update_user_profile(user_id, amount, amount_type, transaction_mode, category
 
 # ------------------ Main Page ------------------
 def home_page(user_id):
-    # st.set_page_config(page_title="Finance Tracker", layout="centered")
     st.title("💰 Personal Finance Tracker")
 
     with st.expander("➕ Add New Transaction", expanded=True):

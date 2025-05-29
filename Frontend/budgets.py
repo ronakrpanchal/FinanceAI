@@ -18,9 +18,6 @@ def budget_planning_page(user_id):
     transactions_collection = db['transactions']
     user_profiles_collection = db['user_profiles']
     monthly_budgets_collection = db['monthly_budgets']
-
-    # Define categories
-    # categories = ['Housing', 'Food', 'Transportation', 'Entertainment', 'Other']
     
     categories = user_profiles_collection.find_one({"user_id": user_id}).get("custom_categories", [])
     
@@ -43,9 +40,6 @@ def budget_planning_page(user_id):
                     st.error(f"⚠️ Request failed: {str(e)}")
             else:
                 st.warning("✍️ Please enter a description prompt.")
-
-    # Set Budget Section
-    # st.subheader("Set Your Budgets")
 
     user_budget = budgets_collection.find_one({"user_id": user_id})
 
@@ -87,28 +81,6 @@ def budget_planning_page(user_id):
             }}
         )
         st.success("Income and savings updated successfully.")
-
-    # Set budget for each category
-    # if categories:
-    #     for category in categories:
-    #         existing_alloc = next((item for item in user_budget['budget_data']['expenses'] if item['category'] == category), None)
-    #         default_val = existing_alloc['allocated_amount'] if existing_alloc else 0.0
-
-    #         amount = st.number_input(f"Budget for {category}", min_value=float(0), step=float(100), format="%.2f", value=float(default_val), key=category)
-
-    #         if st.button(f"Save Budget for {category}", key=f"save_{category}"):
-    #             budgets_collection.update_one(
-    #                 {"user_id": user_id, "budget_data.expenses.category": category},
-    #                 {"$set": {"budget_data.expenses.$.allocated_amount": amount}}
-    #             )
-    #             # If not found (new category), add it
-    #             budgets_collection.update_one(
-    #                 {"user_id": user_id, "budget_data.expenses.category": {"$ne": category}},
-    #                 {"$push": {"budget_data.expenses": {"category": category, "allocated_amount": amount}}}
-    #             )
-    #             st.success(f"Budget for {category} set to ₹{amount:.2f}")
-    #     else:
-    #         st.warning("No categories available. Please add categories in your profile.")
     
     with st.expander("## 💸 Set Allocated Budgets for Each Category", expanded=True):
         if categories:
@@ -185,40 +157,6 @@ def budget_planning_page(user_id):
     else:
         st.info("No budget allocations yet.")
     
-    # # Budget vs Expenses - simplified version without Mapped Category
-    # st.subheader("Budget vs. Expenses")
-    # expenses_df = pd.DataFrame(list(transactions_collection.find({'user_id': user_id, 'amount_type': 'debit'})))
-
-    # if not expenses_df.empty:
-    #     # Normalize categories
-    #     expenses_df['category'] = expenses_df['category'].str.strip().str.capitalize()
-        
-    #     # Aggregate expenses by category
-    #     total_exp = expenses_df.groupby('category')['amount'].sum().abs().reset_index(name='Actual Expense (₹)')
-        
-    #     # Load budget data
-    #     budget_df = pd.DataFrame(user_budget['budget_data']['expenses'])
-        
-    #     if not budget_df.empty:
-    #         # Rename columns for clarity
-    #         budget_df.rename(columns={"category": "category", "allocated_amount": "Budget (₹)"}, inplace=True)
-            
-    #         # Merge budget and expenses on category
-    #         comparison = pd.merge(budget_df, total_exp, on='category', how='outer').fillna(0)
-            
-    #         # Calculate remaining budget and status
-    #         comparison['Remaining (₹)'] = comparison['Budget (₹)'] - comparison['Actual Expense (₹)']
-    #         comparison['Status'] = comparison['Remaining (₹)'].apply(lambda x: "Over Budget" if x < 0 else "Within Budget")
-            
-    #         # Clean up column name
-    #         comparison.rename(columns={"category": "Category"}, inplace=True)
-            
-    #         # Display result
-    #         st.dataframe(comparison)
-    #     else:
-    #         st.info("No budget allocations yet.")
-    # else:
-    #     st.info("No expenses recorded yet.")
     # Get current month and year
     now = datetime.now()
     start_of_month = datetime(now.year, now.month, 1).strftime("%Y-%m-%d")
