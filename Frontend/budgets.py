@@ -20,9 +20,20 @@ def budget_planning_page(user_id):
     monthly_budgets_collection = db['monthly_budgets']
     
     categories = user_profiles_collection.find_one({"user_id": user_id}).get("custom_categories", [])
-    
+    currecy = user_profiles_collection.find_one({"user_id": user_id}).get("currency", "")
+    symbol = ""
+    if currecy == "INR - Indian Rupee":
+        symbol = "₹"
+    elif currecy == "USD - US Dollar":
+        symbol = "$"
+    elif currecy == "EUR - Euro":
+        symbol = "€"
+    elif currecy == "GBP - British Pound":
+        symbol = "£"
+    elif currecy == "JPY - Japanese Yen":
+        symbol = "¥"
     with st.expander("🧠 Generate Budget from Prompt"):
-        prompt = st.text_area("Describe your budgeting needs", placeholder="e.g. I earn ₹50000 per month and want to save ₹10000. Allocate the rest across housing, food, travel, and fun.")
+        prompt = st.text_area(f"Describe your budgeting needs", placeholder="e.g. I earn {symbol}50000 per month and want to save {symbol}10000. Allocate the rest across housing, food, travel, and fun.")
         if st.button("🪄 Generate Budget from AI"):
             if prompt.strip() != "":
                 payload = {
@@ -140,7 +151,7 @@ def budget_planning_page(user_id):
                             }
                         )
 
-                    st.success(f"✅ Saved ₹{amount:.2f} for '{category}' ({frequency})")
+                    st.success(f"✅ Saved {symbol}{amount:.2f} for '{category}' ({frequency})")
         else:
             st.warning("No custom categories found. Please add them in your profile.")
 
@@ -150,9 +161,9 @@ def budget_planning_page(user_id):
     user_budget = budgets_collection.find_one({"user_id": user_id})  # Re-fetch after updates
     budget_df = pd.DataFrame(user_budget['budget_data']['expenses'])
     if not budget_df.empty:
-        budget_df.rename(columns={"category": "Category", "allocated_amount": "Budget (₹)"}, inplace=True)
-        st.write(f"**Income:** ₹{user_budget['budget_data']['income']:.2f}")
-        st.write(f"**Savings Goal:** ₹{user_budget['budget_data']['savings']:.2f}")
+        budget_df.rename(columns={"category": "Category", "allocated_amount": f"Budget ({symbol})"}, inplace=True)
+        st.write(f"**Income:** {symbol}{user_budget['budget_data']['income']:.2f}")
+        st.write(f"**Savings Goal:** {symbol}{user_budget['budget_data']['savings']:.2f}")
         st.dataframe(budget_df)
     else:
         st.info("No budget allocations yet.")
@@ -199,19 +210,19 @@ def budget_planning_page(user_id):
         expenses_df['category'] = expenses_df['category'].str.strip().str.capitalize()
 
         # Aggregate monthly expenses by category
-        total_exp = expenses_df.groupby('category')['amount'].sum().abs().reset_index(name='Actual Expense (₹)')
+        total_exp = expenses_df.groupby('category')['amount'].sum().abs().reset_index(name=f'Actual Expense ({symbol})')
 
         # Load user budget
         user_budget = budgets_collection.find_one({"user_id": user_id})
         budget_df = pd.DataFrame(user_budget['budget_data']['expenses']) if user_budget else pd.DataFrame()
 
         if not budget_df.empty:
-            budget_df.rename(columns={"category": "category", "allocated_amount": "Budget (₹)"}, inplace=True)
+            budget_df.rename(columns={"category": "category", "allocated_amount": f"Budget ({symbol})"}, inplace=True)
 
             # Merge budget with actuals
             comparison = pd.merge(budget_df, total_exp, on='category', how='outer').fillna(0)
-            comparison['Remaining (₹)'] = comparison['Budget (₹)'] - comparison['Actual Expense (₹)']
-            comparison['Status'] = comparison['Remaining (₹)'].apply(lambda x: "Over Budget" if x < 0 else "Within Budget")
+            comparison[f'Remaining ({symbol})'] = comparison[f'Budget ({symbol})'] - comparison[f'Actual Expense ({symbol})']
+            comparison['Status'] = comparison[f'Remaining ({symbol})'].apply(lambda x: "Over Budget" if x < 0 else "Within Budget")
 
             comparison.rename(columns={"category": "Category"}, inplace=True)
             st.dataframe(comparison)
@@ -235,15 +246,15 @@ def budget_planning_page(user_id):
 
             if not df.empty:
                 df = df[["category", "allocated_amount", "frequency", "actual_spent"]]
-                df.columns = ["Category", "Allocated (₹)", "Frequency", "Spent (₹)"]
-                df["Remaining (₹)"] = df["Allocated (₹)"] - df["Spent (₹)"]
-                df["Status"] = df["Remaining (₹)"].apply(lambda x: "Over Budget" if x < 0 else "Within Budget")
+                df.columns = ["Category", f"Allocated ({symbol})", "Frequency", f"Spent ({symbol})"]
+                df[f"Remaining ({symbol})"] = df[f"Allocated ({symbol})"] - df[f"Spent ({symbol})"]
+                df["Status"] = df[f"Remaining ({symbol})"].apply(lambda x: "Over Budget" if x < 0 else "Within Budget")
 
                 st.dataframe(df, use_container_width=True)
 
-                total_allocated = df["Allocated (₹)"].sum()
-                total_spent = df["Spent (₹)"].sum()
-                st.markdown(f"**💰 Total Allocated**: ₹{total_allocated:.2f} | **📉 Total Spent**: ₹{total_spent:.2f}")
+                total_allocated = df[f"Allocated ({symbol})"].sum()
+                total_spent = df[f"Spent ({symbol})"].sum()
+                st.markdown(f"**💰 Total Allocated**: {symbol}{total_allocated:.2f} | **📉 Total Spent**: {symbol}{total_spent:.2f}")
                 st.divider()
             else:
                 st.info("No categories in this month's budget.")

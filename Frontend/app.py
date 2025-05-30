@@ -120,6 +120,11 @@ def collect_initial_financial_info(user_id):
     st.title("Initial Financial Setup")
 
     with st.form("initial_financial_form"):
+        curr = st.selectbox(
+            "💱 Currency",
+            ["INR - Indian Rupee", "USD - US Dollar", "EUR - Euro", "GBP - British Pound", "JPY - Japanese Yen"],
+            index=0
+        )
         cash = st.number_input("💵 Current Cash Holdings", min_value=0.0)
         online = st.number_input("🏦 Online Holdings (Bank, UPI, etc.)", min_value=0.0)
         stocks = st.number_input("📈 Investments in Stocks", min_value=0.0)
@@ -146,6 +151,7 @@ def collect_initial_financial_info(user_id):
 
                 data = {
                     "user_id": user_id,
+                    "currency":curr,
                     "cash_holdings": cash,
                     "online_holdings": online,
                     "stock_investments": stocks,
@@ -279,3 +285,6 @@ def main():
                         st.rerun()
                     else:
                         st.error(msg)
+
+if __name__ == "__main__":
+    main()

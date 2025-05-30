@@ -12,12 +12,13 @@ def render_dashboard(user_id):
     transactions_collection = db["transactions"]
     user_profiles_collection = db["user_profiles"]
     
-        # --- Load Financial Summary ---
+    # --- Load Financial Summary ---
     financial = user_profiles_collection.find_one({"user_id": user_id})
     if not financial:
         st.warning("No financial summary found for this user.")
         return
     
+    st.subheader("📌 Current Financial Summary")
     col1, col2, col3 = st.columns(3)
     col1.metric("💰 Cash Holdings", f"₹ {financial['cash_holdings']:.2f}")
     col2.metric("🏦 Online Holdings", f"₹ {financial['online_holdings']:.2f}")
@@ -26,6 +27,42 @@ def render_dashboard(user_id):
     col4, col5 = st.columns(2)
     col4.metric("📈 Savings", f"₹ {financial['savings']:.2f}")
     col5.metric("💾 Total Savings", f"₹ {financial['total_savings']:.2f}")
+
+    st.markdown("---")
+
+    # --- Editable Section ---
+    st.subheader("🔧 Update Your Holdings")
+
+    with st.form("update_holdings_form"):
+        cash_change = st.number_input("Change in Cash Holdings (₹)", value=0.0, format="%.2f")
+        online_change = st.number_input("Change in Online Holdings (₹)", value=0.0, format="%.2f")
+        stock_change = st.number_input("Change in Stock Investments (₹)", value=0.0, format="%.2f")
+        savings_change = st.number_input("Change in Savings (₹)", value=0.0, format="%.2f")
+        submitted = st.form_submit_button("Update Holdings")
+
+        if submitted:
+            updated_values = {
+                "cash_holdings": financial["cash_holdings"] + cash_change,
+                "online_holdings": financial["online_holdings"] + online_change,
+                "stock_investments": financial["stock_investments"] + stock_change,
+                "savings": financial["savings"] + savings_change
+            }
+            updated_values["total_savings"] = (
+                updated_values["cash_holdings"] +
+                updated_values["online_holdings"] +
+                updated_values["stock_investments"] +
+                updated_values["savings"]
+            )
+
+            # Update MongoDB
+            user_profiles_collection.update_one(
+                {"user_id": user_id},
+                {"$set": updated_values}
+            )
+            st.success("✅ Holdings updated successfully!")
+            st.rerun()
+
+    st.markdown("---")
 
     # --- Fetch User's Transactions ---
     transactions = list(transactions_collection.find({"user_id": user_id}))

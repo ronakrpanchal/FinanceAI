@@ -3,7 +3,7 @@ from pymongo import MongoClient
 from datetime import datetime
 import pandas as pd
 import requests
-import base64
+# import base64
 import json
 from bson import ObjectId
 import time
@@ -222,33 +222,34 @@ def home_page(user_id):
             st.success("🎉 Transaction added successfully!")
             
     # ========== Section 2: Upload Receipt ==========
-    with st.expander("📸 Upload and Parse Receipt"):
-        uploaded_file = st.file_uploader("Upload receipt image", type=["png", "jpg", "jpeg"])
-        category = st.selectbox("Select receipt category", ["Groceries", "Bills", "Utilities", "Shopping", "Others"])
+    # Under progress 
+    # with st.expander("📸 Upload and Parse Receipt"):
+    #     uploaded_file = st.file_uploader("Upload receipt image", type=["png", "jpg", "jpeg"])
+    #     category = st.selectbox("Select receipt category", ["Groceries", "Bills", "Utilities", "Shopping", "Others"])
 
-        if st.button("📤 Parse Receipt"):
-            if uploaded_file is not None:
-                # Convert image to base64
-                image_bytes = uploaded_file.read()
-                base64_image = base64.b64encode(image_bytes).decode('utf-8')
-                image_url = f"data:image/jpeg;base64,{base64_image}"
+    #     if st.button("📤 Parse Receipt"):
+    #         if uploaded_file is not None:
+    #             # Convert image to base64
+    #             image_bytes = uploaded_file.read()
+    #             base64_image = base64.b64encode(image_bytes).decode('utf-8')
+    #             image_url = f"data:image/jpeg;base64,{base64_image}"
 
-                payload = {
-                    "image_url": image_url,
-                    "user_id": user_id,
-                    "category": category.lower()
-                }
+    #             payload = {
+    #                 "image_url": image_url,
+    #                 "user_id": user_id,
+    #                 "category": category.lower()
+    #             }
 
-                try:
-                    response = requests.post(f"{BACKEND_URL}/parse-receipt", json=payload)
-                    if response.status_code == 200:
-                        st.success("🧾 Receipt parsed and transaction added successfully!")
-                    else:
-                        st.error(f"❌ Error: {response.json().get('error')}")
-                except Exception as e:
-                    st.error(f"⚠️ API call failed: {str(e)}")
-            else:
-                st.warning("📎 Please upload a receipt image first.")
+    #             try:
+    #                 response = requests.post(f"{BACKEND_URL}/parse-receipt", json=payload)
+    #                 if response.status_code == 200:
+    #                     st.success("🧾 Receipt parsed and transaction added successfully!")
+    #                 else:
+    #                     st.error(f"❌ Error: {response.json().get('error')}")
+    #             except Exception as e:
+    #                 st.error(f"⚠️ API call failed: {str(e)}")
+    #         else:
+    #             st.warning("📎 Please upload a receipt image first.")
 
     # ------------------ Transaction History ------------------
     st.subheader("📊 Transaction History")
