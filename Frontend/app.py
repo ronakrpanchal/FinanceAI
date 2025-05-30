@@ -155,7 +155,8 @@ def collect_initial_financial_info(user_id):
                     "cash_holdings": cash,
                     "online_holdings": online,
                     "stock_investments": stocks,
-                    "total_savings": savings,
+                    "savings": savings,
+                    "total_savings": savings + stocks,
                     "custom_categories": final_categories,  # 👈 store all selected+custom
                     "created_at": datetime.now()
                 }
