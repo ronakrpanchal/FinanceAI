@@ -48,8 +48,6 @@ def render_dashboard(user_id):
                 "savings": financial["savings"] + savings_change
             }
             updated_values["total_savings"] = (
-                updated_values["cash_holdings"] +
-                updated_values["online_holdings"] +
                 updated_values["stock_investments"] +
                 updated_values["savings"]
             )
