@@ -9,6 +9,7 @@ from budgets import budget_planning_page
 from debts import debts_page
 from subscriptions import subscription_page
 from dashboard import render_dashboard
+from chatbot import chatbot
 from bson import ObjectId
 
 MONGO_URI = st.secrets["MONGO_URI"]
@@ -203,6 +204,10 @@ def main():
                 st.session_state.current_page = "Home"
                 st.rerun()
                 
+            if st.button("💬 Chat with AI", use_container_width=True):
+                st.session_state.current_page = "chatbot"
+                st.rerun()
+                
             if st.button("💰 Budget Planning", use_container_width=True):
                 st.session_state.current_page = "Budget Planning"
                 st.rerun()
@@ -234,6 +239,8 @@ def main():
     if st.session_state.authenticated:
         if st.session_state.current_page == "Home":
             home_page(st.session_state.user["id"])
+        elif st.session_state.current_page == "chatbot":
+            chatbot(st.session_state.user["id"])
         elif st.session_state.current_page == "Budget Planning":
             budget_planning_page(st.session_state.user["id"])
         elif st.session_state.current_page == "Debt Management":
