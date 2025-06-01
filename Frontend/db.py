@@ -20,6 +20,7 @@ def create_mongodb_structure():
         budgets_collection = db["budgets"]
         user_profiles_collection = db["user_profiles"]
         monthly_budgets_collection = db["monthly_budgets"]
+        chat_memory_collection = db["chat_memory"]
         
         # Create indexes for faster queries
         users_collection.create_index("username", unique=True)
@@ -29,6 +30,7 @@ def create_mongodb_structure():
         budgets_collection.create_index("user_id", unique=True)
         user_profiles_collection.create_index("user_id", unique=True)
         monthly_budgets_collection.create_index("user_id", unique=True)
+        chat_memory_collection.create_index("user_id")
         
         print("MongoDB database and collections created successfully")
         return db
