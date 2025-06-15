@@ -119,7 +119,7 @@ def get_full_user_profile(user_id: str):
 
 def get_date_range_last_month_to_today():
     today = datetime.datetime.now()
-    first_day_last_month = today.replace(day=1) - relativedelta(months=1)
+    first_day_last_month = today.replace(day=1)
     return first_day_last_month.strftime("%Y-%m-%d"), today.strftime("%Y-%m-%d")
 
 def get_transactions_between_last_month_and_today(user_id):
@@ -172,7 +172,7 @@ def load_model(query:str,user_id:str):
     user = User(data=user_data)
     recent_messages = get_recent_messages(user_id)
     recent_expenses = get_transactions_between_last_month_and_today(user_id)
-    print(recent_expenses)
+    # print(recent_expenses)
     system_prompt = prompt_render(ChatPrompt(user=user,recent_messages=recent_messages,user_expenses=recent_expenses))
     messages = [
         SystemMessage(content=system_prompt),
