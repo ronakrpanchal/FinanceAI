@@ -10,7 +10,6 @@ import time
 from utils.categories import get_user_categories, add_custom_category
 
 BACKEND_URL = st.secrets["BACKEND_URL"]
-LOCAL_URL = st.secrets["LOCAL_URL"]
 
 # ------------------ MongoDB Utilities ------------------
 def get_db():
